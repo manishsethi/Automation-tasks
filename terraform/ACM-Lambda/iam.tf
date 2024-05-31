@@ -29,7 +29,8 @@ resource "aws_iam_policy" "lambda_policy" {
           "logs:PutLogEvents",
           "acm:ListCertificates",
           "acm:DescribeCertificate",
-          "secretsmanager:GetSecretValue"
+          "secretsmanager:GetSecretValue",
+          "ec2:DescribeRegions"
         ]
         Effect   = "Allow"
         Resource = "*"
