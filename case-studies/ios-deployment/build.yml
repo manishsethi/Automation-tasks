@@ -1,0 +1,99 @@
+parameters:
+- name: environment
+  type: string
+  default: ""
+- name: applicationId
+  type: string
+  default: ""
+- name: versionNumber
+  type: string
+  default: ""
+- name: BuildConfiguration
+  type: string
+  default: "Release"
+
+steps:
+  - script: |
+      sudo xcode-select -s /Applications/Xcode_15.0.1.app
+      xcodebuild -version
+  - task: InstallAppleCertificate@2
+    inputs:
+      certSecureFile: 'AppleDistributionCertificate.p12'
+      certPwd: '$(p12certificates)'
+      keychain: 'temp'
+  - task: InstallAppleProvisioningProfile@1
+    inputs:
+      provisioningProfileLocation: 'secureFiles'
+      provProfileSecureFile: 'app.mobileprovision'
+  - task: NuGetToolInstaller@1
+    inputs:
+      versionSpec: '5.8.0'
+    
+  # Install .NET SDK
+  - task: UseDotNet@2
+    inputs:
+      packageType: 'sdk'
+      version: '8.x' # Ensure the version matches your project's requirements
+      installationPath: $(Agent.ToolsDirectory)/dotnet
+
+  # Display .NET Core version and installed SDKs
+  - script: |
+      dotnet --version
+      dotnet --list-sdks
+      dotnet --list-runtimes
+    displayName: 'Display .NET Core Info'
+
+  # Display NuGet sources
+  - script: |
+      dotnet nuget list source
+    displayName: 'Display NuGet Sources'
+
+  # Install required workloads
+  - script: |
+      dotnet workload install maui-android
+      dotnet workload install maui-ios
+    displayName: 'Install Required Workloads'
+
+  # Restore the project
+  - task: DotNetCoreCLI@2
+    inputs:
+      command: 'restore'
+      projects: '**/*.csproj'
+      arguments: '--configfile nuget.config --framework net8.0-ios' 
+
+  # Clean the project
+  - script: |
+      dotnet clean **/*.csproj --configuration ${{ parameters.BuildConfiguration }}
+    displayName: 'Clean Project'
+  # Delete the obj folder
+  - script: |
+      rm -rf **/obj
+      rm -rf **/bin
+    displayName: 'Delete obj Folder'
+
+  # Build the project
+  - script: |
+      dotnet build **/*.csproj -c ${{ parameters.BuildConfiguration }}
+    displayName: 'Build Solution'
+
+  # Publish the artifacts
+  - task: DotNetCoreCLI@2
+    inputs:
+      command: 'publish'
+      projects: '**/*.csproj'
+      publishWebProjects: false 
+      arguments: '--configuration ${{ parameters.BuildConfiguration }} --framework net8.0-ios --output $(Build.ArtifactStagingDirectory)'
+      zipAfterPublish: false
+      modifyOutputPath: false
+
+  # Archieve the artifacts
+  - task: ArchiveFiles@2
+    inputs:
+      rootFolderOrFile: '$(Build.ArtifactStagingDirectory)'
+      includeRootFolder: false
+      archiveType: 'zip'
+      archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+      replaceExistingArchive: true
+
+  - publish: $(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip
+    artifact: drop

@@ -1,0 +1,68 @@
+steps:
+  - task: InstallAppleCertificate@2
+    inputs:
+      certSecureFile: 'AppleDistributionCertificate.p12'
+      certPwd: '$(p12certificates)'
+      keychain: 'temp'
+  - task: InstallAppleProvisioningProfile@1
+    inputs:
+      provisioningProfileLocation: 'secureFiles'
+      provProfileSecureFile: 'app.mobileprovision'
+
+  - script: |
+      echo "List contents of the Build.ArtifactStagingDirectory"
+      ls -R $(Build.ArtifactStagingDirectory)
+    displayName: 'List artifact directory contents'
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      pathToPublish: '$(Build.ArtifactStagingDirectory)'
+      artifactName: 'drop'
+      publishLocation: 'Container'
+
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifact: 'drop'  # Use the build ID from the build pipeline
+      path: '$(Pipeline.Workspace)'
+
+  - task: ExtractFiles@1
+    inputs:
+      archiveFilePatterns: '$(Pipeline.Workspace)/$(Build.BuildId).zip'
+      destinationFolder: '$(Pipeline.Workspace)/extracted'
+      cleanDestinationFolder: true
+
+  - script: |
+      echo "List contents of the downloaded artifact directory"
+      ls -R '$(Pipeline.Workspace)/extracted'
+    displayName: 'List downloaded artifact directory contents'
+
+# Extract the IPA file
+  - script: |
+      unzip $(Pipeline.Workspace)/$(Build.BuildId).zip -d $(Pipeline.Workspace)/unzipped
+      ls -R $(Pipeline.Workspace)/unzipped
+    displayName: 'Extract IPA file'
+
+# Download the AuthKey file
+  - task: DownloadSecureFile@1
+    inputs:
+      secureFile: 'AuthKey_5B4Q6KMC52.p8'
+    displayName: Download the AuthKey file
+
+  - script: |
+      echo "Listing the path of the AuthKey file"
+      find $(Agent.TempDirectory) -name "AuthKey_5B4Q6KMC52.p8"
+    displayName: 'List AuthKey file path'
+
+  - script: |
+      echo "Copying AuthKey to known location"
+      mkdir -p ~/.private_keys
+      cp $(Agent.TempDirectory)/AuthKey_5B4Q6KMC52.p8 ~/.private_keys/AuthKey_5B4Q6KMC52.p8
+      echo "Listing contents of ~/.private_keys"
+      ls -R ~/.private_keys
+    displayName: 'Copy AuthKey to known location'
+  
+  - script: |
+      ipa_file=$(find $(Pipeline.Workspace)/extracted -name "*.ipa" | head -n 1)
+      echo "Uploading IPA to App Store Connect"
+      xcrun altool --upload-app --type ios --file "$ipa_file" --apiKey "5B4Q6KMC52" --apiIssuer "<Issuer>" --key ~/.private_keys/AuthKey_5B4Q6KMC52.p8
+    displayName: 'Upload IPA to App Store Connect'

@@ -1,0 +1,36 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool: 
+  vmImage: 'macos-13'
+
+variables:
+  applicationId: '<app-id>'
+  environment: 'uat'
+  versionNumber: '1.4'
+  internalTestingGroup: 'Internal Testers'
+  BuildConfiguration: 'Release'
+
+stages:
+   - stage: Build
+     jobs:
+       - job: BuildJob
+         steps:
+           - template: build.yml
+             parameters:
+               applicationId: $(applicationId)
+               environment: $(environment)
+               versionNumber: $(versionNumber)
+               BuildConfiguration: $(BuildConfiguration)
+
+   - stage: Publish
+     jobs:
+        - job: PublishJob
+          steps:
+          - template: publishappstore.yml
+            # parameters:
+              # environment: $(environment)
+              # applicationId: $(applicationId)
+              # internalTestingGroup: $(internalTestingGroup)
