@@ -1,0 +1,215 @@
+---
+- name: Configure all nodes
+  hosts: all
+  become: true
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install prerequisites
+      apt:
+        name: software-properties-common
+        state: present
+
+    - name: Add OpenJDK repository
+      apt_repository:
+        repo: 'ppa:openjdk-r/ppa'
+        state: present
+
+    - name: Update apt cache after adding repository
+      apt:
+        update_cache: yes
+
+    - name: Install basic packages
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - python3
+        - openjdk-11-jdk
+    - name: Set JAVA_HOME
+      lineinfile:
+        dest: /home/hadoop/.bashrc  # Adjust the path based on your setup
+        regexp: '^export JAVA_HOME='
+        line: 'export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64'  # Adjust this path based on your JDK installation path
+        state: present
+
+    - name: Source JAVA_HOME
+      shell: . /home/hadoop/.bashrc
+
+    - name: Ensure Hadoop user and group exist
+      group:
+        name: hadoop
+        state: present
+
+    - name: Create Hadoop user
+      user:
+        name: hadoop
+        group: hadoop
+        create_home: yes
+
+    - name: Install Hadoop
+      shell: |
+        cd /usr/local
+        wget https://downloads.apache.org/hadoop/common/hadoop-3.4.0/hadoop-3.4.0.tar.gz
+        tar -xzf hadoop-3.4.0.tar.gz
+        mv hadoop-3.4.0 hadoop
+        chown -R hadoop:hadoop /usr/local/hadoop
+
+    - name: Install Zookeeper
+      shell: |
+        cd /usr/local
+        wget https://downloads.apache.org/zookeeper/zookeeper-3.9.2/apache-zookeeper-3.9.2-bin.tar.gz
+        tar -xzf apache-zookeeper-3.9.2-bin.tar.gz
+        mv apache-zookeeper-3.9.2-bin zookeeper
+        chown -R hadoop:hadoop /usr/local/zookeeper
+    - name: Set JAVA_HOME globally
+      lineinfile:
+        path: /etc/environment
+        line: 'JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64'
+        state: present
+
+- name: Configure Zookeeper
+  hosts: zookeepers
+  become: true
+  tasks:
+    - name: Set up Zookeeper environment variables
+      lineinfile:
+        dest: /home/hadoop/.bashrc
+        regexp: '^export ZOOKEEPER_(HOME|CONF_DIR|LOG_DIR)'
+        line: "{{ item }}"
+        state: present
+      loop:
+        - 'export ZOOKEEPER_HOME=/usr/local/zookeeper'
+        - 'export ZOOKEEPER_CONF_DIR=$ZOOKEEPER_HOME/conf'
+        - 'export ZOOKEEPER_LOG_DIR=$ZOOKEEPER_HOME/logs'
+
+    - name: Source Zookeeper environment variables
+      shell: . /home/hadoop/.bashrc
+
+    - name: Set Zookeeper directory permissions
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: hadoop
+        group: hadoop
+      loop:
+        - /usr/local/zookeeper
+        - /usr/local/zookeeper/logs
+        - /usr/local/zookeeper/tmp
+
+    - name: Start Zookeeper
+      shell: |
+        cd /usr/local/zookeeper
+        ./bin/zkServer.sh start
+
+- name: Configure NameNode
+  hosts: namenodes
+  become: true
+  tasks:
+    - name: Set up Hadoop environment variables
+      lineinfile:
+        dest: /home/hadoop/.bashrc
+        regexp: '^export HADOOP_(HOME|CONF_DIR|YARN_HOME|LOG_DIR)'
+        line: "{{ item }}"
+        state: present
+      loop:
+        - 'export HADOOP_HOME=/usr/local/hadoop'
+        - 'export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop'
+        - 'export YARN_HOME=$HADOOP_HOME'
+        - 'export HADOOP_LOG_DIR=$HADOOP_HOME/logs'
+
+    - name: Source Hadoop environment variables
+      shell: . /home/hadoop/.bashrc
+
+    - name: Set Hadoop directory permissions
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: hadoop
+        group: hadoop
+      loop:
+        - /usr/local/hadoop
+        - /usr/local/hadoop/logs
+        - /usr/local/hadoop/tmp
+
+    - name: Format NameNode
+      expect:
+        command: /usr/local/hadoop/bin/hdfs namenode -format
+        responses:
+          "Re-format filesystem in Storage Directory": "Y"
+      args:
+        creates: /usr/local/hadoop/tmp/dfs/name  # Ensures idempotency
+
+- name: Configure DataNode
+  hosts: datanodes
+  become: true
+  tasks:
+    - name: Set up Hadoop environment variables
+      lineinfile:
+        dest: /home/hadoop/.bashrc
+        regexp: '^export HADOOP_(HOME|CONF_DIR|YARN_HOME|LOG_DIR)'
+        line: "{{ item }}"
+        state: present
+      loop:
+        - 'export HADOOP_HOME=/usr/local/hadoop'
+        - 'export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop'
+        - 'export YARN_HOME=$HADOOP_HOME'
+        - 'export HADOOP_LOG_DIR=$HADOOP_HOME/logs'
+
+    - name: Source Hadoop environment variables
+      shell: . /home/hadoop/.bashrc
+
+    - name: Set Hadoop directory permissions
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: hadoop
+        group: hadoop
+      loop:
+        - /usr/local/hadoop
+        - /usr/local/hadoop/logs
+        - /usr/local/hadoop/tmp
+
+    - name: Format DataNode
+      expect:
+        command: /usr/local/hadoop/bin/hdfs datanode -format
+        responses:
+          "Re-format filesystem in Storage Directory": "Y"
+
+- name: Configure ResourceManager
+  hosts: resourcemanagers
+  become: true
+  tasks:
+    - name: Set up Hadoop environment variables
+      lineinfile:
+        dest: /home/hadoop/.bashrc
+        regexp: '^export HADOOP_(HOME|CONF_DIR|YARN_HOME|LOG_DIR)'
+        line: "{{ item }}"
+        state: present
+      loop:
+        - 'export HADOOP_HOME=/usr/local/hadoop'
+        - 'export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop'
+        - 'export YARN_HOME=$HADOOP_HOME'
+        - 'export HADOOP_LOG_DIR=$HADOOP_HOME/logs'
+
+    - name: Source Hadoop environment variables
+      shell: . /home/hadoop/.bashrc
+
+    - name: Set Hadoop directory permissions
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: hadoop
+        group: hadoop
+      loop:
+        - /usr/local/hadoop
+        - /usr/local/hadoop/logs
+        - /usr/local/hadoop/tmp
+
+    - name: Start ResourceManager
+      shell: |
+        cd /usr/local/hadoop
+        ./sbin/yarn-daemon.sh start resourcemanager
