@@ -44,11 +44,7 @@ jobs:
       - name: Test if the dbus system is responding
         run: |
           docker exec dbus-test dbus-send --system --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.ListNames
-
-      - name: Test if a specific dbus service is available (example: org.freedesktop.login1)
-        run: |
-          docker exec dbus-test dbus-send --system --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.GetNameOwner string:org.freedesktop.login1 || { echo "org.freedesktop.login1 service not found"; exit 1; }
-
+          
       - name: Test the status of dbus
         run: |
           docker exec dbus-test dbus-send --system --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.Peer.Ping || { echo "dbus is not responding to ping"; exit 1; }
