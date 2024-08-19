@@ -30,6 +30,7 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -t my-ubuntu-dbus:latest .
+          docker images  # List images to verify the build
 
       - name: Run the container to test dbus
         run: |
@@ -39,6 +40,7 @@ jobs:
 
       - name: Cleanup
         run: docker rm -f dbus-test
+
 
   test:
     runs-on: ubuntu-latest
