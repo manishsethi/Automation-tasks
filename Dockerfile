@@ -11,4 +11,4 @@ RUN mkdir -p /var/run/dbus && \
 COPY dbus-policy.conf /etc/dbus-1/system.d/dbus-policy.conf
 
 # Ensure dbus is running as a service
-CMD ["sh", "-c", "dbus-daemon --system --nofork --config-file=/etc/dbus-1/system.conf & while true; do sleep 1000; done"]
+CMD ["sh", "-c", "dbus-daemon --system --nofork --config-file=/etc/dbus-1/system.d/dbus-policy.conf & while true; do sleep 1000; done"]
