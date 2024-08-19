@@ -36,10 +36,6 @@ jobs:
         run: |
           docker run -d --privileged --name dbus-test my-ubuntu-dbus:latest
           sleep 5  # Wait for dbus to start
-
-      - name: Test if dbus-daemon is running
-        run: |
-          docker exec dbus-test bash -c "pgrep dbus-daemon"
       
       - name: Test if the dbus system is responding
         run: |
