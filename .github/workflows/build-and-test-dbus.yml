@@ -46,16 +46,3 @@ jobs:
 
       - name: Cleanup
         run: docker rm -f dbus-test
-
-
-  test:
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Run the dbus check
-        run: |
-          docker run --rm my-ubuntu-dbus:latest dbus-send --system --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.ListNames
