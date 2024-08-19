@@ -32,11 +32,22 @@ jobs:
           docker build -t my-ubuntu-dbus:latest .
           docker images  # List images to verify the build
 
-      - name: Run the container to test dbus
+      - name: Test if dbus-daemon is running
         run: |
-          docker run -d --name dbus-test my-ubuntu-dbus:latest
-          sleep 5  # Wait for dbus to start
-          docker exec dbus-test bash -c "dbus-send --system --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.ListNames"
+          docker exec dbus-test pgrep dbus-daemon || { echo "dbus-daemon not running"; exit 1; }
+
+      - name: Test if the dbus system is responding
+        run: |
+          docker exec dbus-test dbus-send --system --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.ListNames
+
+      - name: Test if a specific dbus service is available (example: org.freedesktop.login1)
+        run: |
+          docker exec dbus-test dbus-send --system --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.GetNameOwner string:org.freedesktop.login1 || { echo "org.freedesktop.login1 service not found"; exit 1; }
+
+      - name: Test the status of dbus
+        run: |
+          docker exec dbus-test dbus-send --system --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.Peer.Ping || { echo "dbus is not responding to ping"; exit 1; }
+
 
       - name: Cleanup
         run: docker rm -f dbus-test
