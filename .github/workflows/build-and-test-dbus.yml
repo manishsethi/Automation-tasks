@@ -32,10 +32,6 @@ jobs:
           docker build -t my-ubuntu-dbus:latest .
           docker images  # List images to verify the build
 
-      - name: Test if dbus-daemon is running
-        run: |
-          docker exec dbus-test pgrep dbus-daemon || { echo "dbus-daemon not running"; exit 1; }
-
       - name: Test if the dbus system is responding
         run: |
           docker exec dbus-test dbus-send --system --print-reply --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.ListNames
