@@ -39,7 +39,7 @@ jobs:
 
       - name: Test if dbus-daemon is running
         run: |
-          docker exec dbus-test bash -c "pgrep dbus-daemon || { echo "dbus-daemon not running"; exit 1; }"
+          docker exec dbus-test bash -c "pgrep dbus-daemon "
       
       - name: Test if the dbus system is responding
         run: |
