@@ -45,9 +45,10 @@ FROM opensuse/leap:15.5
 # Set the working directory
 WORKDIR /app
 
-# Install necessary packages including dbus, and handle dependency issues by allowing vendor change and forcing resolution
-RUN zypper --non-interactive install --no-recommends --allow-vendor-change --auto-agree-with-licenses --force-resolution \
-    git git-lfs ccache cmake rpmbuild openssh sudo gcc13 gcc-c++ ninja systemd dbus &&  \
+# Refresh repositories and install essential packages, including dbus and systemd
+RUN zypper --non-interactive refresh && \
+    zypper --non-interactive install --no-recommends --allow-vendor-change --auto-agree-with-licenses --force-resolution \
+    git git-lfs ccache cmake rpmbuild openssh sudo gcc13 gcc-c++ ninja systemd dbus && \
     zypper clean -a
 
 # Create necessary directories and symlinks for systemd
@@ -59,15 +60,18 @@ RUN mkdir -p /run/systemd /run/systemd/system && \
 RUN mkdir -p /run/dbus && \
     dbus-uuidgen > /etc/machine-id
 
-# Copy entire project directory into the image
+# Copy the entire project directory into the image
 COPY . /app
 
-# Add a repository and refresh the package cache
-RUN zypper ar -fG dir:/app/repo/3rdParty/leap/ 3rdParty
+# Add a repository for third-party packages and refresh the package cache
+RUN zypper ar -fG dir:/app/repo/3rdParty/leap/ 3rdParty && \
+    zypper refresh
 
-# Ensure systemd is the entry point and dbus starts with it
+# Expose required volumes for systemd and dbus
 VOLUME ["/tmp", "/run", "/sys/fs/cgroup"]
+
+# Set systemd as the entry point
 ENTRYPOINT ["/usr/lib/systemd/systemd"]
 
-# Set dbus to start as a service
-CMD ["/usr/lib/systemd/systemd", "--system", "--unit=dbus.service"]
+# Optionally start dbus and other services by default
+CMD ["/usr/lib/systemd/systemd", "--system"]
